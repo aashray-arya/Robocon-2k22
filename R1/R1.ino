@@ -309,12 +309,12 @@ void loop()
         if (Ry >= 0)
         {
           if (theta <= 0)
-            theta += 0.0;
+            theta += 180.0;
         }
         else
         {
           if (theta >= 0)
-            theta += 0.0;
+            theta += 180.0;
           else
             theta += 360.0;
         }
