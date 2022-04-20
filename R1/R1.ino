@@ -58,6 +58,7 @@ bool powerOn = false;
 constexpr int powerLed = 53;
 //PIDTuner tuner(&powerOn, &kp, &ki, &kd, Serial3);
 int Lx, Ly, Rx, Ry;
+byte bldc = 0;
 
 uint8_t routineCounter = 0;
 bool checkForRoutines()
@@ -69,6 +70,12 @@ bool checkForRoutines()
     return true;
   }
   return false;
+}
+
+void sendSignalToSlave(byte value){
+    Wire.beginTransmission(4); // transmit to device #4
+    Wire.write(value);         // sends one byte  
+    Wire.endTransmission();    // stop transmitting
 }
 
 void forestRoutine() {};
@@ -378,6 +385,14 @@ void loop()
       {
         Serial.println("bot move back");
         bot.move(30, 270);
+      }
+      else if (ds4.button(UP)){
+        if(bldc == 0){
+          bldc = 1;
+        } else{
+          bldc = 0;
+        }
+        sendSignalToSlave(bldc);
       }
       else {
         //Serial.println("Stopping");
