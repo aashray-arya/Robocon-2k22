@@ -60,7 +60,6 @@ bool powerOn = false;
 constexpr int powerLed = 53;
 //PIDTuner tuner(&powerOn, &kp, &ki, &kd, Serial3);
 int Lx, Ly, Rx, Ry;
-byte bldc = 0;
 
 //bldc
 byte bldc = 0;
@@ -81,27 +80,27 @@ bool checkForRoutines()
   }
   return false;
 }
-void sendSignalToSlave(byte value){
-    Wire.beginTransmission(4); // transmit to device #4
-    Wire.write(value);         // sends one byte  
-    Wire.endTransmission();    // stop transmitting
+void sendSignalToSlave(byte value) {
+  Wire.beginTransmission(4); // transmit to device #4
+  Wire.write(value);         // sends one byte
+  Wire.endTransmission();    // stop transmitting
 }
 
 void updateBldcState() {
   if (bldcButtonState == HIGH) {  // the button has been just pressed
-      bldcStartPressed = millis();  
+    bldcStartPressed = millis();
   } else {  // the button has been just released
-      bldcEndPressed = millis();
-      bldcHoldTime = bldcEndPressed - bldcStartPressed;
+    bldcEndPressed = millis();
+    bldcHoldTime = bldcEndPressed - bldcStartPressed;
 
-      if (bldcHoldTime >= 100 && bldcHoldTime < 500) {
-          Serial.println("Button was held for about half a second"); 
-          if(bldc == 0)
-            bldc = 1;
-          else
-            bldc = 0;
-          sendSignalToSlave(bldc);
-      }
+    if (bldcHoldTime >= 100 && bldcHoldTime < 500) {
+      Serial.println("Button was held for about half a second");
+      if (bldc == 0)
+        bldc = 1;
+      else
+        bldc = 0;
+      sendSignalToSlave(bldc);
+    }
 
   }
 }
@@ -420,7 +419,7 @@ void loop()
         Serial.println("bot move back");
         bot.move(30, 270);
       }
-      else if (bldcButtonState != bldcLastButtonState) // button state changed{
+      else if (bldcButtonState != bldcLastButtonState) { // button state changed
         updateBldcState();
       }
       else if (ds4.button(HAT_LEFT)) {
