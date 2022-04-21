@@ -58,7 +58,14 @@ bool powerOn = false;
 constexpr int powerLed = 53;
 //PIDTuner tuner(&powerOn, &kp, &ki, &kd, Serial3);
 int Lx, Ly, Rx, Ry;
+
+//bldc
 byte bldc = 0;
+int bldcButtonState = 0;
+int bldcLastButtonState = 0;
+int bldcStartPressed = 0;
+int bldcEndPressed = 0;
+int bldcHoldTime = 0;
 
 uint8_t routineCounter = 0;
 bool checkForRoutines()
@@ -76,6 +83,25 @@ void sendSignalToSlave(byte value){
     Wire.beginTransmission(4); // transmit to device #4
     Wire.write(value);         // sends one byte  
     Wire.endTransmission();    // stop transmitting
+}
+
+void updateBldcState() {
+  if (bldcButtonState == HIGH) {  // the button has been just pressed
+      bldcStartPressed = millis();  
+  } else {  // the button has been just released
+      bldcEndPressed = millis();
+      bldcHoldTime = bldcEndPressed - bldcStartPressed;
+
+      if (bldcHoldTime >= 100 && bldcHoldTime < 500) {
+          Serial.println("Button was held for about half a second"); 
+          if(bldc == 0)
+            bldc = 1;
+          else
+            bldc = 0;
+          sendSignalToSlave(bldc);
+      }
+
+  }
 }
 
 void forestRoutine() {};
@@ -299,6 +325,7 @@ void loop()
       Serial.print(Lx);
       Serial.print("\tLy :");
       Serial.println(Ly);
+      bldcButtonState = ds4.button(UP);
 
       if (checkForRoutines())
       {
@@ -386,19 +413,22 @@ void loop()
         Serial.println("bot move back");
         bot.move(30, 270);
       }
-      else if (ds4.button(UP)){
-        if(bldc == 0){
-          bldc = 1;
-        } else{
-          bldc = 0;
-        }
-        sendSignalToSlave(bldc);
+      else if (bldcButtonState != bldcLastButtonState) // button state changed{
+        updateBldcState();
       }
+//      else if (ds4.button(UP)){
+//        if(bldc == 0){
+//          bldc = 1;
+//        } else{
+//          bldc = 0;
+//        }
+//        sendSignalToSlave(bldc);
+//      }
       else {
         //Serial.println("Stopping");
         bot.stopAll();
       }
-
+      bldcLastButtonState = bldcButtonState;        // save bldc state for next loop
     }
     else
       bot.stopAll();
