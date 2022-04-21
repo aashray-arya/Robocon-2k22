@@ -15,9 +15,11 @@
 #include <Servo.h>
 #include<String.h>
 
-# define X_EN_5v  53 //ENA+(+5V) stepper motor enable , active low     Orange
-# define dirPin 49 //DIR+(+5v) axis stepper motor direction control  Brown
-# define stepPin 45//PUL+(+5v) axis stepper motor step control       RED
+#define X_EN_5v  49 //ENA+(+5V) stepper motor enable , active low     Orange
+#define dirPin 47 //DIR+(+5v) axis stepper motor direction control  Brown
+#define stepPin 45//PUL+(+5v) axis stepper motor step control       RED
+#define piston_pin1 29
+#define piston_pin2 27
 
 float kp, ki, kd;
 bool power;
@@ -58,6 +60,7 @@ bool powerOn = false;
 constexpr int powerLed = 53;
 //PIDTuner tuner(&powerOn, &kp, &ki, &kd, Serial3);
 int Lx, Ly, Rx, Ry;
+byte bldc = 0;
 
 uint8_t routineCounter = 0;
 bool checkForRoutines()
@@ -69,6 +72,12 @@ bool checkForRoutines()
     return true;
   }
   return false;
+}
+
+void sendSignalToSlave(byte value) {
+  Wire.beginTransmission(4); // transmit to device #4
+  Wire.write(value);         // sends one byte
+  Wire.endTransmission();    // stop transmitting
 }
 
 void forestRoutine() {};
@@ -252,6 +261,11 @@ void setup()
 
   pinMode(stepPin, OUTPUT);
   pinMode(dirPin, OUTPUT);
+  pinMode(X_EN_5v, OUTPUT);
+  digitalWrite(X_EN_5v, LOW);
+
+  pinMode(piston_pin2, OUTPUT);
+  pinMode(piston_pin1, OUTPUT);
   bot.initialize();
   initializeBNO();
   // resetEncoder();
@@ -379,6 +393,35 @@ void loop()
         Serial.println("bot move back");
         bot.move(30, 270);
       }
+      else if (ds4.button(UP)) {
+        if (bldc == 0) {
+          bldc = 1;
+          sendSignalToSlave(bldc);
+        } else {
+          bldc = 0;
+          sendSignalToSlave(bldc);
+        }
+      }
+      else if (ds4.button(HAT_LEFT)) {
+        digitalWrite(piston_pin1, HIGH);
+        digitalWrite(piston_pin2, HIGH);
+      }
+      else if (ds4.button(HAT_RIGHT)) {
+        digitalWrite(piston_pin1, LOW);
+        digitalWrite(piston_pin2, LOW);
+      }
+      else if (ds4.button(R1))
+      {
+        bot.Rotate(30);
+      }
+      else if (ds4.button(L1))
+      {
+        bot.Rotate(-30);
+      }
+      else if (ds4.button(DOWN)) {
+        resetBNO();
+      }
+
       else {
         //Serial.println("Stopping");
         bot.stopAll();
