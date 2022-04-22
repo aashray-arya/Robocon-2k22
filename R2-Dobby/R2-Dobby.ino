@@ -410,6 +410,33 @@ void loop()
         Serial.println("bot move back");
         bot.move(30, 270);
       }
+      else if (ds4.button(DOWN)) {
+        resetBNO();
+      }
+      else if (ds4.button(HAT_LEFT)){
+        Serial.println("1 step forward");
+        digitalWrite(dirPin, HIGH);
+        digitalWrite(stepPin, HIGH);
+        delayMicroseconds(500);
+        digitalWrite(stepPin, LOW);
+        delayMicroseconds(500);
+      }
+      else if (ds4.button(HAT_RIGHT)){
+        Serial.println("1 step backward");
+        digitalWrite(dirPin, LOW);
+        digitalWrite(stepPin, HIGH);
+        delayMicroseconds(500);
+        digitalWrite(stepPin, LOW);
+        delayMicroseconds(500); 
+      }
+      else if (ds4.button(R1))
+      {
+        bot.Rotate_AK(30);
+      }
+      else if (ds4.button(R2))
+      {
+        bot.Rotate_AK(-30);
+      }
       else {
         //Serial.println("Stopping");
         bot.stopAll();
