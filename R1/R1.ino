@@ -424,11 +424,11 @@ void loop()
       }
       else if (ds4.button(HAT_LEFT)) {
         digitalWrite(piston_pin1, HIGH);
-        digitalWrite(piston_pin2, HIGH);
+        digitalWrite(piston_pin2, LOW);
       }
       else if (ds4.button(HAT_RIGHT)) {
         digitalWrite(piston_pin1, LOW);
-        digitalWrite(piston_pin2, LOW);
+        digitalWrite(piston_pin2, HIGH);
       }
       else if (ds4.button(R1))
       {
