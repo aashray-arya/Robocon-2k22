@@ -23,16 +23,21 @@
 #define relay12 29
 #define relay21 31
 #define relay22 33
+
 #define PW1 23
 #define PW2 25
 int flagg = 0;
 int flaggg = 0;
+
+#define dc1 8
+#define dc2 9
+#define dcpwm 5
 float kp, ki, kd;
 bool power;
 
 
-Servo myservo;
-
+Servo myservo1;
+Servo myservo2;
 
 constexpr int MAX_SPEED = 40;
 constexpr int AXIS_DEAD_ZONE = 1500;
@@ -134,18 +139,18 @@ void testRoutine ()
   Serial.println("N.X: " + String(next.x) + "N.Y: " + String(next.y) + "\tVEL: " + String(_vel) + "\tTAN: " + String(_tan) + "\tX: " + String(pos.x) + "\tY: " + String(pos.y));
   bot.move(_vel, _tan);
 }
-void servo()
-{
-  myservo.writeMicroseconds(1850);
-  Serial.println("BLDC start");
-}
-void servo1()
-{
-  //   for (int i=pos; i>= 0; i -= 1) { // goes from 0 degrees to 180 degrees
-  //    // in steps of 1 degree
-  myservo.write(0);
-  //    delay(15);}
-}
+//void servo()
+//{
+//  myservo.writeMicroseconds(1850);
+//  Serial.println("BLDC start");
+//}
+//void servo1()
+//{
+//  //   for (int i=pos; i>= 0; i -= 1) { // goes from 0 degrees to 180 degrees
+//  //    // in steps of 1 degree
+//  myservo.write(0);
+//  //    delay(15);}
+//}
 
 void Serial3Flush()
 {
@@ -258,12 +263,21 @@ void setup()
   Wire.begin();
   pinMode(stepPin, OUTPUT);
   pinMode(dirPin, OUTPUT);
-  pinMode(PW1,OUTPUT);
-  pinMode(PW2,OUTPUT);
+  pinMode(PW1, OUTPUT);
+  pinMode(PW2, OUTPUT);
+  pinMode(dc1, OUTPUT);
+  pinMode(dc2, OUTPUT);
+  pinMode(dcpwm, OUTPUT);
+  pinMode(X_EN_5v, OUTPUT);
+  digitalWrite(X_EN_5v, LOW);
+  pinMode(relay11, OUTPUT);
+  pinMode(relay12, OUTPUT);
   bot.initialize();
   initializeBNO();
   // resetEncoder();
-  myservo.attach(46);
+  myservo1.attach(10);
+  myservo2.attach(12);
+
   pinMode(powerLed, OUTPUT);
   //while (!tuner.update());
   digitalWrite(A7, LOW);
@@ -354,101 +368,102 @@ void loop()
       }
       else if (ds4.button(SQUARE))
       {
-        //        Serial.println("1 step forward");
-        //        digitalWrite(dirPin, HIGH);
-        //        digitalWrite(stepPin, HIGH);
-        //        delayMicroseconds(500);
-        //        digitalWrite(stepPin, LOW);
-        //        delayMicroseconds(500);
-        //        if (flaggg % 2 == 0) {
         Serial.println("SQ");
         digitalWrite(PW1, LOW);
         digitalWrite(PW2, HIGH);
-        //          flaggg++;
-        //        }
-        //        else {
-        //          digitalWrite(relay12, HIGH);
-        //          digitalWrite(relay11, LOW);
-        //          flaggg++;
 
       }
       else if (ds4.button(CIRCLE))
       {
-        //        Serial.println("1 step backward");
-        //        digitalWrite(dirPin, LOW);
-        //        digitalWrite(stepPin, HIGH);
-        //        delayMicroseconds(500);
-        //        digitalWrite(stepPin, LOW);
-        //        delayMicroseconds(500);
-        //        if (flaggg % 2 == 0) {
         Serial.println("CIR");
         digitalWrite(PW1, HIGH);
         digitalWrite(PW2, LOW);
-        //          flaggg++;
-        //        }
-        //        else {
-        //          digitalWrite(relay12, HIGH);
-        //          digitalWrite(relay11, LOW);
-        //          flaggg++;
-        //}
       }
-      else if (!(Lx > -AXIS_DEAD_ZONE && Lx < AXIS_DEAD_ZONE) || !(Ly > -AXIS_DEAD_ZONE && Ly < AXIS_DEAD_ZONE))
-      {
-        Serial.println("Left Axis Triggered\t");
-        //Serial.println(String(Lx));
-        pwm = map(Lx, -32768, 32767, -25, 25);
-        bot.Rotate_AK(pwm);
-        //resetBNO();
-      }
+      //else if (!(Lx > -AXIS_DEAD_ZONE && Lx < AXIS_DEAD_ZONE) || !(Ly > -AXIS_DEAD_ZONE && Ly < AXIS_DEAD_ZONE))
+      //{
+      //        Serial.println("Left Axis Triggered\t");
+      //        //Serial.println(String(Lx));
+      //        pwm = map(Ly, -32768, 32767, -100, 100);
+      //        if (Ly != -1) {
+      //          digitalWrite(dc1, pwm > 0);
+      //          digitalWrite(dc2, pwm < 0);
+      //          analogWrite(dcpwm, abs(pwm));
+      //        }
+      //}
       else if (ds4.button(TRIANGLE))
       {
-        Serial.println("move bot");
-        bot.move(30, 90);
+        //        Serial.println("move bot");
+        //        bot.move(30, 90);
+        digitalWrite(relay11, HIGH);
+        digitalWrite(relay12, LOW);
+        digitalWrite(relay21, HIGH);
+        digitalWrite(relay22, LOW);
+
       }
       else if (ds4.button(CROSS))
       {
-        Serial.println("bot move back");
-        bot.move(30, 270);
+        //        Serial.println("bot move back");
+        //        bot.move(30, 270);
+        digitalWrite(relay11, LOW);
+        digitalWrite(relay12, HIGH);
+        digitalWrite(relay21, LOW);
+        digitalWrite(relay22, HIGH);
       }
       else if (ds4.button(DOWN)) {
         resetBNO();
       }
-      else if (ds4.button(HAT_LEFT)){
+      else if (ds4.button(HAT_LEFT)) {
         Serial.println("1 step forward");
         digitalWrite(dirPin, HIGH);
         digitalWrite(stepPin, HIGH);
-        delayMicroseconds(500);
+        delayMicroseconds(5);
         digitalWrite(stepPin, LOW);
-        delayMicroseconds(500);
+        delayMicroseconds(5);
       }
-      else if (ds4.button(HAT_RIGHT)){
+      else if (ds4.button(HAT_RIGHT)) {
         Serial.println("1 step backward");
         digitalWrite(dirPin, LOW);
         digitalWrite(stepPin, HIGH);
-        delayMicroseconds(500);
+        delayMicroseconds(5);
         digitalWrite(stepPin, LOW);
-        delayMicroseconds(500); 
+        delayMicroseconds(5);
       }
       else if (ds4.button(R1))
       {
-        bot.Rotate_AK(30);
+        Serial.println("r1");
+        digitalWrite(dc1, LOW);
+        digitalWrite(dc2, HIGH);
+        analogWrite(dcpwm, 25);
+      }
+      else if (ds4.button(L1))
+      {
+        //bot.Rotate_AK(-30);
+        digitalWrite(dc1, HIGH);
+        digitalWrite(dc2, LOW);
+        analogWrite(dcpwm, 25);
       }
       else if (ds4.button(R2))
       {
-        bot.Rotate_AK(-30);
+        myservo1.write(90);
+        myservo2.write(90);
+      }
+      else if (ds4.button(L2))
+      {
+        myservo1.write(180);
+        myservo2.write(0);
       }
       else {
         //Serial.println("Stopping");
         bot.stopAll();
         digitalWrite(PW1, LOW);
         digitalWrite(PW2, LOW);
+        digitalWrite(dc1, HIGH);
+        digitalWrite(dc2, HIGH);
       }
 
     }
     else
       bot.stopAll();
-    digitalWrite(PW1, LOW);
-    digitalWrite(PW2, LOW);
   }
 }
 
