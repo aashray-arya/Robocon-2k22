@@ -14,6 +14,7 @@
 #include "src/HolonomicDrive/HolonomicDrive.h"
 #include <Servo.h>
 #include<String.h>
+#include <PID_Tuner.h>
 
 # define X_EN_5v  53 //ENA+(+5V) stepper motor enable , active low     Orange
 # define dirPin 49 //DIR+(+5v) axis stepper motor direction control  Brown
@@ -68,7 +69,7 @@ DualShock4 ds4(Serial3);
 bool powerOn = false;
 
 constexpr int powerLed = 53;
-//PIDTuner tuner(&powerOn, &kp, &ki, &kd, Serial3);a
+PIDTuner tuner(&powerOn, &kp, &ki, &kd, Serial3);
 int Lx, Ly, Rx, Ry;
 
 uint8_t routineCounter = 0;
@@ -281,13 +282,16 @@ void setup()
   myservo2.attach(12);
 
   pinMode(powerLed, OUTPUT);
-  //while (!tuner.update());
   digitalWrite(A7, LOW);
   digitalWrite(A12, LOW);
 
-  debug_msg("Connecting to Controller");
-  while (!ds4.readGamepad());
-  debug_msg("Controller Connected");
+  //debug_msg("Connecting to Controller");
+  //while (!ds4.readGamepad());
+  //debug_msg("Controller Connected");
+
+  debug_msg("Connecting to tuner");
+  while (!tuner.update());
+  debug_msg("Tuner connected!!");
 }
 
 bool mright = false;
@@ -297,197 +301,199 @@ int pwm;
 void loop()
 {
 
-  if (ds4.readGamepad())
-  {
-    if (ds4.buttonPressed(PS))
-    {
-      powerOn = !powerOn;
-      digitalWrite(powerLed, powerOn);
-      debug_msg("POWER : " + String((powerOn) ? "ON" : "OFF"));
-
-    }
-
-
-    if (powerOn)
-    {
-      Lx = map(ds4.axis(LX), 0, 65535, -32768, 32767);
-      Ly = map(ds4.axis(LY), 0, 65535, -32768, 32767);
-      Rx = map(ds4.axis(RX), 0, 65535, 32768, -32767);
-      Ry = map(ds4.axis(RY), 0, 65535, -32768,32767);
-      Serial.print("Lx :");
-      Serial.print(Lx);
-      Serial.print("\tLy :");
-      Serial.println(Ly);
-
-      if (checkForRoutines())
-      {
-        return;
-      }
-
-      else if (!(Rx > -AXIS_DEAD_ZONE && Rx < AXIS_DEAD_ZONE) || !(Ry > -AXIS_DEAD_ZONE && Ry < AXIS_DEAD_ZONE))
-      {
-        double theta = toDegree(atan((double)Ry / (double)Rx));
-        Rx = map(Rx, -32768, 32767, -128, 127);
-        Ry = map(Ry, -32768, 32767, -128, 127);
-        Serial.print("Rx :");
-        Serial.println(Rx);
-        unsigned int R = constrain(map2((double)((Rx * Rx) + (Ry * Ry)), 0.0, 16384.0, 0.0, 100.0), 0, 100);
-        if (Ry >= 0)
-        {
-          if (theta <= 0)
-            theta += 180.0;
-        }
-        else
-        {
-          if (theta >= 0)
-            theta += 180.0;
-          else
-            theta += 360.0;
-        }
-
-        // debug_msg("Rx : " + String(Rx) + "\tRy : " + String(Ry) + "\tR : " + String(R) + "\tTheta : " + String(theta));
-        //          if (R <= 25)
-        //          {
-        //            rotational.SetTunings(0.021, 0.015, 0.0032);
-        //            if (mode != 0)
-        //            {
-        //              rotational.resetIntegral();
-        //              mode = 0;
-        //            }
-        //          }
-        //          else //if (R <= 60)
-        //          {
-        //            //0.01325, 0.002, 0.01
-        //            rotational.SetTunings(0.021, 0.015, 0.0032);
-        //            if (mode != 1)
-        //            {
-        //              rotational.resetIntegral();
-        //              mode = 1;
-        //            }
-        //          }
-        bot.move(R, theta);
-        //testRoutine();
-      }
-      else if (ds4.button(SQUARE))
-      {
-        Serial.println("SQ");
-        digitalWrite(PW1, LOW);
-        digitalWrite(PW2, HIGH);
-
-      }
-      else if (ds4.button(CIRCLE))
-      {
-        Serial.println("CIR");
-        digitalWrite(PW1, HIGH);
-        digitalWrite(PW2, LOW);
-      }
-      else if (!(Lx > -AXIS_DEAD_ZONE && Lx < AXIS_DEAD_ZONE))//|| !(Ly > -AXIS_DEAD_ZONE && Ly < AXIS_DEAD_ZONE)
-      {
-        Serial.println("Left Axis Triggered\t");
-        //Serial.println(String(Lx));
-        pwm = map(Lx, -32768, 32767, -25, 25);
-        //bot.Rotate_AK(pwm);
-      }
-      else if (ds4.button(TRIANGLE))
-      {
-        //        Serial.println("move bot");
-        //        bot.move(30, 90);
-        digitalWrite(relay11, HIGH);
-        digitalWrite(relay12, LOW);
-        digitalWrite(relay21, HIGH);
-        digitalWrite(relay22, LOW);
-
-      }
-      else if (ds4.button(CROSS))
-      {
-        //        Serial.println("bot move back");
-        //        bot.move(30, 270);
-        digitalWrite(relay11, LOW);
-        digitalWrite(relay12, HIGH);
-        digitalWrite(relay21, LOW);
-        digitalWrite(relay22, HIGH);
-      }
-      else if (ds4.button(DOWN)) {
-        resetBNO();
-      }
-      else if (ds4.button(HAT_LEFT)) {
-        Serial.println("1 step forward");
-        digitalWrite(dirPin, HIGH);
-        digitalWrite(stepPin, HIGH);
-        delayMicroseconds(1000);
-        digitalWrite(stepPin, LOW);
-        delayMicroseconds(1000);
-      }
-      else if (ds4.button(HAT_RIGHT)) {
-        Serial.println("1 step backward");
-        digitalWrite(dirPin, LOW);
-        digitalWrite(stepPin, HIGH);
-        delayMicroseconds(1000);
-        digitalWrite(stepPin, LOW);
-        delayMicroseconds(1000);
-      }
-      else if (ds4.button(R1))
-      {
-        Serial.println("r1");
-        digitalWrite(dc1, LOW);
-        digitalWrite(dc2, HIGH);
-        analogWrite(dcpwm, 25);
-      }
-      else if (ds4.button(L1))
-      {
-        //bot.Rotate_AK(-30);
-        digitalWrite(dc1, HIGH);
-        digitalWrite(dc2, LOW);
-        analogWrite(dcpwm, 25);
-      }
-      else if (ds4.button(R2))
-      {
-        myservo1.write(90);
-        myservo2.write(90);
-      }
-      else if (ds4.button(L2))
-      {
-        myservo1.write(180);
-        myservo2.write(0);
-      }
-      else {
-        //Serial.println("Stopping");
-        bot.stopAll();
-        digitalWrite(PW1, LOW);
-        digitalWrite(PW2, LOW);
-        digitalWrite(dc1, HIGH);
-        digitalWrite(dc2, HIGH);
-      }
-
-    }
-    else
-      bot.stopAll();
-  }
-}
-
-//  if (tuner.update())
+//  if (ds4.readGamepad())
 //  {
-//    if (lastPower == 0 && powerOn == 1) {
-//      //resetBNO();
-//    mright = !mright;}
-//    rotational.SetTunings(kp, ki, kd);   // Serial.println(String(kp) + "\t" + String(ki) + "\t" + String(kd) + "\t" + String(powerOn));
-//    //Serial.println(String(powerOn));
+//    if (ds4.buttonPressed(PS))
+//    {
+//      powerOn = !powerOn;
+//      digitalWrite(powerLed, powerOn);
+//      debug_msg("POWER : " + String((powerOn) ? "ON" : "OFF"));
+//
+//    }
+//
+//
 //    if (powerOn)
 //    {
+//      Lx = map(ds4.axis(LX), 0, 65535, -32768, 32767);
+//      Ly = map(ds4.axis(LY), 0, 65535, -32768, 32767);
+//      Rx = map(ds4.axis(RX), 0, 65535, 32768, -32767);
+//      Ry = map(ds4.axis(RY), 0, 65535, -32768, 32767);
+//      Serial.print("Lx :");
+//      Serial.print(Lx);
+//      Serial.print("\tLy :");
+//      Serial.println(Ly);
 //
-//      (mright) ? bot.move(40, 0) : bot.move(40, 180);
-//      //Serial.println("moving");
-//     // bot.move(30, 90);
-////      powerOn = !powerOn;
+//      if (checkForRoutines())
+//      {
+//        return;
+//      }
 //
-////  Serial.println(String(kp) + "\t" + String(ki) + "\t" + String(kd) + "\t" + String(powerOn));
+//      else if (!(Rx > -AXIS_DEAD_ZONE && Rx < AXIS_DEAD_ZONE) || !(Ry > -AXIS_DEAD_ZONE && Ry < AXIS_DEAD_ZONE))
+//      {
+//        double theta = toDegree(atan((double)Ry / (double)Rx));
+//        Rx = map(Rx, -32768, 32767, -128, 127);
+//        Ry = map(Ry, -32768, 32767, -128, 127);
+//        Serial.print("Rx :");
+//        Serial.println(Rx);
+//        unsigned int R = constrain(map2((double)((Rx * Rx) + (Ry * Ry)), 0.0, 16384.0, 0.0, 100.0), 0, 100);
+//        if (Ry >= 0)
+//        {
+//          if (theta <= 0)
+//            theta += 180.0;
+//        }
+//        else
+//        {
+//          if (theta >= 0)
+//            theta += 180.0;
+//          else
+//            theta += 360.0;
+//        }
+//
+//        // debug_msg("Rx : " + String(Rx) + "\tRy : " + String(Ry) + "\tR : " + String(R) + "\tTheta : " + String(theta));
+//        //          if (R <= 25)
+//        //          {
+//        //            rotational.SetTunings(0.021, 0.015, 0.0032);
+//        //            if (mode != 0)
+//        //            {
+//        //              rotational.resetIntegral();
+//        //              mode = 0;
+//        //            }
+//        //          }
+//        //          else //if (R <= 60)
+//        //          {
+//        //            //0.01325, 0.002, 0.01
+//        //            rotational.SetTunings(0.021, 0.015, 0.0032);
+//        //            if (mode != 1)
+//        //            {
+//        //              rotational.resetIntegral();
+//        //              mode = 1;
+//        //            }
+//        //          }
+//        bot.move(R, theta);
+//        //testRoutine();
+//      }
+//      else if (ds4.button(SQUARE))
+//      {
+//        Serial.println("SQ");
+//        digitalWrite(PW1, LOW);
+//        digitalWrite(PW2, HIGH);
+//
+//      }
+//      else if (ds4.button(CIRCLE))
+//      {
+//        Serial.println("CIR");
+//        digitalWrite(PW1, HIGH);
+//        digitalWrite(PW2, LOW);
+//      }
+//      else if (!(Lx > -AXIS_DEAD_ZONE && Lx < AXIS_DEAD_ZONE))//|| !(Ly > -AXIS_DEAD_ZONE && Ly < AXIS_DEAD_ZONE)
+//      {
+//        Serial.println("Left Axis Triggered\t");
+//        //Serial.println(String(Lx));
+//        pwm = map(Lx, -32768, 32767, -25, 25);
+//        //bot.Rotate_AK(pwm);
+//      }
+//      else if (ds4.button(TRIANGLE))
+//      {
+//        //        Serial.println("move bot");
+//        //        bot.move(30, 90);
+//        digitalWrite(relay11, HIGH);
+//        digitalWrite(relay12, LOW);
+//        digitalWrite(relay21, HIGH);
+//        digitalWrite(relay22, LOW);
+//
+//      }
+//      else if (ds4.button(CROSS))
+//      {
+//        //        Serial.println("bot move back");
+//        //        bot.move(30, 270);
+//        digitalWrite(relay11, LOW);
+//        digitalWrite(relay12, HIGH);
+//        digitalWrite(relay21, LOW);
+//        digitalWrite(relay22, HIGH);
+//      }
+//      else if (ds4.button(DOWN)) {
+//        resetBNO();
+//      }
+//      else if (ds4.button(HAT_LEFT)) {
+//        Serial.println("1 step forward");
+//        digitalWrite(dirPin, HIGH);
+//        digitalWrite(stepPin, HIGH);
+//        delayMicroseconds(1000);
+//        digitalWrite(stepPin, LOW);
+//        delayMicroseconds(1000);
+//      }
+//      else if (ds4.button(HAT_RIGHT)) {
+//        Serial.println("1 step backward");
+//        digitalWrite(dirPin, LOW);
+//        digitalWrite(stepPin, HIGH);
+//        delayMicroseconds(1000);
+//        digitalWrite(stepPin, LOW);
+//        delayMicroseconds(1000);
+//      }
+//      else if (ds4.button(R1))
+//      {
+//        Serial.println("r1");
+//        digitalWrite(dc1, LOW);
+//        digitalWrite(dc2, HIGH);
+//        analogWrite(dcpwm, 25);
+//      }
+//      else if (ds4.button(L1))
+//      {
+//        //bot.Rotate_AK(-30);
+//        digitalWrite(dc1, HIGH);
+//        digitalWrite(dc2, LOW);
+//        analogWrite(dcpwm, 25);
+//      }
+//      else if (ds4.button(R2))
+//      {
+//        myservo1.write(90);
+//        myservo2.write(90);
+//      }
+//      else if (ds4.button(L2))
+//      {
+//        myservo1.write(180);
+//        myservo2.write(0);
+//      }
+//      else {
+//        //Serial.println("Stopping");
+//        bot.stopAll();
+//        digitalWrite(PW1, LOW);
+//        digitalWrite(PW2, LOW);
+//        digitalWrite(dc1, HIGH);
+//        digitalWrite(dc2, HIGH);
+//      }
+//
 //    }
 //    else
-//    {// Serial.println("Stopping");
 //      bot.stopAll();
-//    }
-//    lastPower = powerOn;
-//
 //  }
+//}
+
+  if (tuner.update())
+  {
+    if (lastPower == 0 && powerOn == 1) {
+      //resetBNO();
+    mright = !mright;}
+    rotational.SetTunings(kp, ki, kd);   // Serial.println(String(kp) + "\t" + String(ki) + "\t" + String(kd) + "\t" + String(powerOn));
+    //Serial.println(String(powerOn));
+    if (powerOn)
+    {
+
+      (mright) ? bot.move(40, 0) : bot.move(40, 180);
+      //Serial.println("moving");
+     // bot.move(30, 90);
+//      powerOn = !powerOn;
+
+//  Serial.println(String(kp) + "\t" + String(ki) + "\t" + String(kd) + "\t" + String(powerOn));
+    }
+    else
+    {
+      // Serial.println("Stopping");
+      bot.stopAll();
+    }
+    lastPower = powerOn;
+
+  }
 
 //Serial.println(lastPower);
+}
