@@ -68,7 +68,7 @@ DualShock4 ds4(Serial3);
 bool powerOn = false;
 
 constexpr int powerLed = 53;
-//PIDTuner tuner(&powerOn, &kp, &ki, &kd, Serial3);
+//PIDTuner tuner(&powerOn, &kp, &ki, &kd, Serial3);a
 int Lx, Ly, Rx, Ry;
 
 uint8_t routineCounter = 0;
@@ -272,6 +272,8 @@ void setup()
   digitalWrite(X_EN_5v, LOW);
   pinMode(relay11, OUTPUT);
   pinMode(relay12, OUTPUT);
+  pinMode(relay21, OUTPUT);
+  pinMode(relay22, OUTPUT);
   bot.initialize();
   initializeBNO();
   // resetEncoder();
@@ -311,7 +313,7 @@ void loop()
       Lx = map(ds4.axis(LX), 0, 65535, -32768, 32767);
       Ly = map(ds4.axis(LY), 0, 65535, -32768, 32767);
       Rx = map(ds4.axis(RX), 0, 65535, 32768, -32767);
-      Ry = map(ds4.axis(RY), 0, 65535, -32768, 32767);
+      Ry = map(ds4.axis(RY), 0, 65535, -32768,32767);
       Serial.print("Lx :");
       Serial.print(Lx);
       Serial.print("\tLy :");
@@ -379,17 +381,13 @@ void loop()
         digitalWrite(PW1, HIGH);
         digitalWrite(PW2, LOW);
       }
-      //else if (!(Lx > -AXIS_DEAD_ZONE && Lx < AXIS_DEAD_ZONE) || !(Ly > -AXIS_DEAD_ZONE && Ly < AXIS_DEAD_ZONE))
-      //{
-      //        Serial.println("Left Axis Triggered\t");
-      //        //Serial.println(String(Lx));
-      //        pwm = map(Ly, -32768, 32767, -100, 100);
-      //        if (Ly != -1) {
-      //          digitalWrite(dc1, pwm > 0);
-      //          digitalWrite(dc2, pwm < 0);
-      //          analogWrite(dcpwm, abs(pwm));
-      //        }
-      //}
+      else if (!(Lx > -AXIS_DEAD_ZONE && Lx < AXIS_DEAD_ZONE))//|| !(Ly > -AXIS_DEAD_ZONE && Ly < AXIS_DEAD_ZONE)
+      {
+        Serial.println("Left Axis Triggered\t");
+        //Serial.println(String(Lx));
+        pwm = map(Lx, -32768, 32767, -25, 25);
+        //bot.Rotate_AK(pwm);
+      }
       else if (ds4.button(TRIANGLE))
       {
         //        Serial.println("move bot");
@@ -416,17 +414,17 @@ void loop()
         Serial.println("1 step forward");
         digitalWrite(dirPin, HIGH);
         digitalWrite(stepPin, HIGH);
-        delayMicroseconds(5);
+        delayMicroseconds(1000);
         digitalWrite(stepPin, LOW);
-        delayMicroseconds(5);
+        delayMicroseconds(1000);
       }
       else if (ds4.button(HAT_RIGHT)) {
         Serial.println("1 step backward");
         digitalWrite(dirPin, LOW);
         digitalWrite(stepPin, HIGH);
-        delayMicroseconds(5);
+        delayMicroseconds(1000);
         digitalWrite(stepPin, LOW);
-        delayMicroseconds(5);
+        delayMicroseconds(1000);
       }
       else if (ds4.button(R1))
       {
