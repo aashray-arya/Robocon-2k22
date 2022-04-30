@@ -13,7 +13,7 @@
 #include "src/IMU/IMU.h"
 #include "src/HolonomicDrive/HolonomicDrive.h"
 #include <Servo.h>
-#include<String.h>
+#include <String.h>
 
 # define X_EN_5v  53 //ENA+(+5V) stepper motor enable , active low     Orange
 # define dirPin 49 //DIR+(+5v) axis stepper motor direction control  Brown
@@ -23,6 +23,9 @@
 #define relay12 29
 #define relay21 31
 #define relay22 33
+
+#define relay31 37
+#define relay32 39
 
 #define PW1 23
 #define PW2 25
@@ -274,6 +277,8 @@ void setup()
   pinMode(relay12, OUTPUT);
   pinMode(relay21, OUTPUT);
   pinMode(relay22, OUTPUT);
+  pinMode(relay31, OUTPUT);
+  pinMode(relay32, OUTPUT);
   bot.initialize();
   initializeBNO();
   // resetEncoder();
@@ -313,7 +318,7 @@ void loop()
       Lx = map(ds4.axis(LX), 0, 65535, -32768, 32767);
       Ly = map(ds4.axis(LY), 0, 65535, -32768, 32767);
       Rx = map(ds4.axis(RX), 0, 65535, 32768, -32767);
-      Ry = map(ds4.axis(RY), 0, 65535, -32768,32767);
+      Ry = map(ds4.axis(RY), 0, 65535, -32768, 32767);
       Serial.print("Lx :");
       Serial.print(Lx);
       Serial.print("\tLy :");
@@ -381,14 +386,14 @@ void loop()
         digitalWrite(PW1, HIGH);
         digitalWrite(PW2, LOW);
       }
-      else if (!(Lx > -AXIS_DEAD_ZONE && Lx < AXIS_DEAD_ZONE))//|| !(Ly > -AXIS_DEAD_ZONE && Ly < AXIS_DEAD_ZONE)
+      else if (!(Lx > -AXIS_DEAD_ZONE && Lx < AXIS_DEAD_ZONE)|| !(Ly > -AXIS_DEAD_ZONE && Ly < AXIS_DEAD_ZONE))
       {
         Serial.println("Left Axis Triggered\t");
         //Serial.println(String(Lx));
-        pwm = map(Lx, -32768, 32767, -25, 25);
-        //bot.Rotate_AK(pwm);
+        pwm = map(Lx, -32768, 32767, 25, -25);
+        bot.Rotate_AK(pwm);
       }
-      else if (ds4.button(TRIANGLE))
+      else if (ds4.button(OPTIONS))
       {
         //        Serial.println("move bot");
         //        bot.move(30, 90);
@@ -398,7 +403,7 @@ void loop()
         digitalWrite(relay22, LOW);
 
       }
-      else if (ds4.button(CROSS))
+      else if (ds4.button(SHARE))
       {
         //        Serial.println("bot move back");
         //        bot.move(30, 270);
@@ -411,20 +416,24 @@ void loop()
         resetBNO();
       }
       else if (ds4.button(HAT_LEFT)) {
-        Serial.println("1 step forward");
-        digitalWrite(dirPin, HIGH);
-        digitalWrite(stepPin, HIGH);
-        delayMicroseconds(1000);
-        digitalWrite(stepPin, LOW);
-        delayMicroseconds(1000);
+        //        Serial.println("1 step forward");
+        //        digitalWrite(dirPin, HIGH);
+        //        digitalWrite(stepPin, HIGH);
+        //        delayMicroseconds(22);
+        //        digitalWrite(stepPin, LOW);
+        //        delayMicroseconds(22);
+        digitalWrite(relay31, HIGH);
+        digitalWrite(relay32, LOW);
       }
       else if (ds4.button(HAT_RIGHT)) {
-        Serial.println("1 step backward");
-        digitalWrite(dirPin, LOW);
-        digitalWrite(stepPin, HIGH);
-        delayMicroseconds(1000);
-        digitalWrite(stepPin, LOW);
-        delayMicroseconds(1000);
+        //        Serial.println("1 step backward");
+        //        digitalWrite(dirPin, LOW);
+        //        digitalWrite(stepPin, HIGH);
+        //        delayMicroseconds(22);
+        //        digitalWrite(stepPin, LOW);
+        //        delayMicroseconds(22);
+        digitalWrite(relay31, LOW);
+        digitalWrite(relay32, HIGH);
       }
       else if (ds4.button(R1))
       {
