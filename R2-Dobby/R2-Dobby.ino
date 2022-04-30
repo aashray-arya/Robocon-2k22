@@ -71,6 +71,22 @@ constexpr int powerLed = 53;
 //PIDTuner tuner(&powerOn, &kp, &ki, &kd, Serial3);a
 int Lx, Ly, Rx, Ry;
 
+//hatLeft
+byte hatLeft = 0;
+int hatLeftButtonState = 0;
+int hatLeftLastButtonState = 0;
+int hatLeftStartPressed = 0;
+int hatLeftEndPressed = 0;
+int hatLeftHoldTime = 0;
+
+//hatRight
+byte hatRight = 0;
+int hatRightButtonState = 0;
+int hatRightLastButtonState = 0;
+int hatRightStartPressed = 0;
+int hatRightEndPressed = 0;
+int hatRightHoldTime = 0;
+
 uint8_t routineCounter = 0;
 bool checkForRoutines()
 {
@@ -81,6 +97,48 @@ bool checkForRoutines()
     return true;
   }
   return false;
+}
+
+void sendSignalToSlave(byte value) {
+  Wire.beginTransmission(4); // transmit to device #4
+  Wire.write(value);         // sends one byte
+  Wire.endTransmission();    // stop transmitting
+}
+
+void hatLeftPressed() {
+    if (hatLeftButtonState == HIGH) {  // the button has been just pressed
+    hatLeftStartPressed = millis();
+  } else {                             // the button has been just released
+    hatLeftEndPressed = millis();
+    hatLeftHoldTime = hatLeftEndPressed - hatLeftStartPressed;
+
+    if (hatLeftHoldTime >= 100 && hatLeftHoldTime < 500) {
+      Serial.println("Button was held for about half a second");
+      if (hatLeft == 0)
+        hatLeft = 1;
+      else
+        hatLeft = 0;
+      sendSignalToSlave(hatLeft);
+    }
+  }
+}
+
+void hatRightPressed() {
+    if (hatRightButtonState == HIGH) {  // the button has been just pressed
+    hatRightStartPressed = millis();
+  } else {                             // the button has been just released
+    hatRightEndPressed = millis();
+    hatRightHoldTime = hatRightEndPressed - hatRightStartPressed;
+
+    if (hatRightHoldTime >= 100 && hatRightHoldTime < 500) {
+      Serial.println("Button was held for about half a second");
+      if (hatRight == 0)
+        hatRight = 1;
+      else
+        hatRight = 0;
+      sendSignalToSlave(hatRight+2);
+    }
+  }
 }
 
 void forestRoutine() {};
@@ -318,6 +376,8 @@ void loop()
       Serial.print(Lx);
       Serial.print("\tLy :");
       Serial.println(Ly);
+      hatLeftButtonState = ds4.button(HAT_LEFT);
+      hatRightButtonState = ds4.button(HAT_RIGHT);
 
       if (checkForRoutines())
       {
@@ -410,21 +470,11 @@ void loop()
       else if (ds4.button(DOWN)) {
         resetBNO();
       }
-      else if (ds4.button(HAT_LEFT)) {
-        Serial.println("1 step forward");
-        digitalWrite(dirPin, HIGH);
-        digitalWrite(stepPin, HIGH);
-        delayMicroseconds(1000);
-        digitalWrite(stepPin, LOW);
-        delayMicroseconds(1000);
+      else if (hatLeftButtonState != hatLeftLastButtonState) {
+        hatLeftPressed();
       }
-      else if (ds4.button(HAT_RIGHT)) {
-        Serial.println("1 step backward");
-        digitalWrite(dirPin, LOW);
-        digitalWrite(stepPin, HIGH);
-        delayMicroseconds(1000);
-        digitalWrite(stepPin, LOW);
-        delayMicroseconds(1000);
+      else if (hatRightButtonState != hatRightLastButtonState) {
+        hatRightPressed();
       }
       else if (ds4.button(R1))
       {
