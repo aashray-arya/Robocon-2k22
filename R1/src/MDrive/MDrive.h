@@ -125,7 +125,7 @@ void Drive::initialize()
         {
             digitalWrite(back4.D0, b4 > 0);
             digitalWrite(back4.D1, b4 < 0);
-            analogWrite(back4.PWM_PIN, abs(b4));
+            analogWrite(back4.PWM_PIN, (abs(b4)+15));
         }
         String msg = ("F1 : " + String(f1) + "\tF2 : " + String(f2) + "\tB3: " + String(b3)+"\tB4: "+ String(b4));
         debug_msg(msg);
@@ -235,20 +235,20 @@ void Drive::initialize()
         if (pwm != -1)
         {
             prevStopped = false;
-            digitalWrite(front1.D0, pwm>0);
-            digitalWrite(front1.D1, pwm<0);
+            digitalWrite(front1.D0, pwm<0);
+            digitalWrite(front1.D1, pwm>0);
             analogWrite(front1.PWM_PIN, abs(pwm));
 
-            digitalWrite(front2.D0, pwm>0);
-            digitalWrite(front2.D1, pwm<0);
+            digitalWrite(front2.D0, pwm<0);
+            digitalWrite(front2.D1, pwm>0);
             analogWrite(front2.PWM_PIN, abs(pwm));
 
-            digitalWrite(back3.D0, pwm<0);
-            digitalWrite(back3.D1, pwm>0);
+            digitalWrite(back3.D0, pwm>0);
+            digitalWrite(back3.D1, pwm<0);
             analogWrite(back3.PWM_PIN, abs(pwm));
 
-            digitalWrite(back4.D0, pwm<0);
-            digitalWrite(back4.D1, pwm>0);
+            digitalWrite(back4.D0, pwm>0);
+            digitalWrite(back4.D1, pwm<0);
             analogWrite(back4.PWM_PIN, abs(pwm));
 
             debug_msg("Speed of Rotation:\t" + String(pwm));
