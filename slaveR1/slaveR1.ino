@@ -4,6 +4,7 @@
 #define servoPin 3 // signal pin for the ESC.
 Servo servo;
 
+int i=1700;
 
 void setup()
 {
@@ -30,10 +31,14 @@ void receiveEvent(int howMany)
   }
   int x = Wire.read();    // receive byte as an integer
   if(x==0){
-    servo.writeMicroseconds(1500);
+    servo.writeMicroseconds(1000);
+    i=1700;
     Serial.println(x);
   } else{
-    servo.writeMicroseconds(1850);
+    i++;
+    if(i>1850)
+    i=1850;
+    servo.writeMicroseconds(i);
     Serial.println(x);
   }
 }
