@@ -4,7 +4,6 @@
     PID_v1             ->      https://github.com/br3ttb/Arduino-PID-Library
   Rest of the libraries are included in /src folder
 */
-
 #include <Arduino.h>
 #include <Wire.h>
 #include <PID_v1.h>
@@ -15,26 +14,30 @@
 #include <Servo.h>
 #include <String.h>
 
-# define X_EN_5v  53 //ENA+(+5V) stepper motor enable , active low     Orange
-# define dirPin 49 //DIR+(+5v) axis stepper motor direction control  Brown
-# define stepPin 45//PUL+(+5v) axis stepper motor step control       RED
+//# define X_EN_5v  53 //ENA+(+5V) stepper motor enable , active low     Orange
+//# define dirPin 49 //DIR+(+5v) axis stepper motor direction control  Brown
+//# define stepPin 45//PUL+(+5v) axis stepper motor step control       RED
 
 #define relay11 27
 #define relay12 29
 #define relay21 31
 #define relay22 33
 
-#define relay31 37
-#define relay32 39
+#define relay31 49
+#define relay32 53
+
+//#define in1DC 49
+//#define in2DC 53
+#define pwmDC 45
 
 #define PW1 23
 #define PW2 25
 int flagg = 0;
 int flaggg = 0;
 
-#define dc1 8
-#define dc2 9
-#define dcpwm 5
+#define dc1 9
+#define dc2 8
+#define dcpwm 7
 float kp, ki, kd;
 bool power;
 
@@ -58,7 +61,7 @@ bool funcData(double values[]);
 void Serial3Flush();
 
 constexpr motor front(A13, A10, 4);  //DO | D1 | PWM        //CHANGE-HERE
-constexpr motor left(A8, A6, 5); //CHANGE-HERE
+constexpr motor left(A6, A8, 5); //CHANGE-HERE
 constexpr motor right(A4, A1, 6);   //CHANGE-HERE
 
 //  PID Constants
@@ -264,21 +267,24 @@ void setup()
   Serial.begin(115200);
   Serial3.begin(115200);
   Wire.begin();
-  pinMode(stepPin, OUTPUT);
-  pinMode(dirPin, OUTPUT);
+//  pinMode(stepPin, OUTPUT);
+//  pinMode(dirPin, OUTPUT);
   pinMode(PW1, OUTPUT);
   pinMode(PW2, OUTPUT);
   pinMode(dc1, OUTPUT);
   pinMode(dc2, OUTPUT);
   pinMode(dcpwm, OUTPUT);
-  pinMode(X_EN_5v, OUTPUT);
-  digitalWrite(X_EN_5v, LOW);
+//  pinMode(X_EN_5v, OUTPUT);
+//  digitalWrite(X_EN_5v, LOW);
   pinMode(relay11, OUTPUT);
   pinMode(relay12, OUTPUT);
   pinMode(relay21, OUTPUT);
-  pinMode(relay22, OUTPUT);
+  pinMode(relay22, OUTPUT); 
   pinMode(relay31, OUTPUT);
   pinMode(relay32, OUTPUT);
+//  pinMode(in1DC,OUTPUT);
+//  pinMode(in2DC,OUTPUT);
+  
   bot.initialize();
   initializeBNO();
   // resetEncoder();
@@ -386,12 +392,13 @@ void loop()
         digitalWrite(PW1, HIGH);
         digitalWrite(PW2, LOW);
       }
-      else if (!(Lx > -AXIS_DEAD_ZONE && Lx < AXIS_DEAD_ZONE)|| !(Ly > -AXIS_DEAD_ZONE && Ly < AXIS_DEAD_ZONE))
+      else if (!(Lx > -AXIS_DEAD_ZONE && Lx < AXIS_DEAD_ZONE) || !(Ly > -AXIS_DEAD_ZONE && Ly < AXIS_DEAD_ZONE))
       {
         Serial.println("Left Axis Triggered\t");
         //Serial.println(String(Lx));
         pwm = map(Lx, -32768, 32767, 25, -25);
         bot.Rotate_AK(pwm);
+//        resetBNO();
       }
       else if (ds4.button(OPTIONS))
       {
@@ -401,6 +408,7 @@ void loop()
         digitalWrite(relay12, LOW);
         digitalWrite(relay21, HIGH);
         digitalWrite(relay22, LOW);
+          
 
       }
       else if (ds4.button(SHARE))
@@ -415,49 +423,63 @@ void loop()
       else if (ds4.button(DOWN)) {
         resetBNO();
       }
-      else if (ds4.button(HAT_LEFT)) {
+      else if (ds4.button(HAT_RIGHT)) {
         //        Serial.println("1 step forward");
         //        digitalWrite(dirPin, HIGH);
         //        digitalWrite(stepPin, HIGH);
         //        delayMicroseconds(22);
         //        digitalWrite(stepPin, LOW);
         //        delayMicroseconds(22);
+        analogWrite(pwmDC,255);
         digitalWrite(relay31, HIGH);
         digitalWrite(relay32, LOW);
+                  
+//                  digitalWrite(in1DC,LOW);
+//                  digitalWrite(in2DC,HIGH);
       }
-      else if (ds4.button(HAT_RIGHT)) {
+      else if (ds4.button(HAT_LEFT)) {
         //        Serial.println("1 step backward");
         //        digitalWrite(dirPin, LOW);
         //        digitalWrite(stepPin, HIGH);
         //        delayMicroseconds(22);
         //        digitalWrite(stepPin, LOW);
         //        delayMicroseconds(22);
+         analogWrite(pwmDC,255);
         digitalWrite(relay31, LOW);
         digitalWrite(relay32, HIGH);
+
+          
+//           digitalWrite(in1DC,HIGH);
+//           digitalWrite(in2DC,LOW);  
       }
       else if (ds4.button(R1))
       {
         Serial.println("r1");
         digitalWrite(dc1, LOW);
         digitalWrite(dc2, HIGH);
-        analogWrite(dcpwm, 25);
+        analogWrite(dcpwm, 100);
       }
       else if (ds4.button(L1))
       {
         //bot.Rotate_AK(-30);
         digitalWrite(dc1, HIGH);
         digitalWrite(dc2, LOW);
-        analogWrite(dcpwm, 25);
+        analogWrite(dcpwm, 100);
       }
       else if (ds4.button(R2))
       {
-        myservo1.write(90);
-        myservo2.write(90);
+        myservo1.write(180);
+        myservo2.write(0);
       }
       else if (ds4.button(L2))
       {
-        myservo1.write(180);
-        myservo2.write(0);
+        myservo1.write(135);
+        myservo2.write(45);
+      }
+      else if (ds4.button(TRIANGLE))
+      {
+        myservo1.write(90);
+        myservo2.write(90);
       }
       else {
         //Serial.println("Stopping");
@@ -466,6 +488,8 @@ void loop()
         digitalWrite(PW2, LOW);
         digitalWrite(dc1, HIGH);
         digitalWrite(dc2, HIGH);
+        digitalWrite(relay31, HIGH);
+        digitalWrite(relay32, HIGH);
       }
 
     }
