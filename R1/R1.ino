@@ -20,6 +20,8 @@
 #define stepPin 45//PUL+(+5v) axis stepper motor step control       RED
 #define piston_pin1 29
 #define piston_pin2 27
+#define piston_pin3 25
+#define piston_pin4 23
 
 float kp, ki, kd;
 bool power;
@@ -43,10 +45,10 @@ void convert(byte toConvert[], unsigned int converted[], long &res);
 bool funcData(double values[]);
 void Serial3Flush();
 
-constexpr motor front1(10, 8, 9);  //DO | D1 | PWM        //CHANGE-HERE
+constexpr motor front1(8, 10, 9);  //DO | D1 | PWM        //CHANGE-HERE
 constexpr motor front2(13, 11, 12); //CHANGE-HERE
-constexpr motor back3(2, 4, 3);   //CHANGE-HERE
-constexpr motor back4(5, 7, 6);  //CHANGE-HERE
+constexpr motor back3(4, 2, 3);   //CHANGE-HERE
+constexpr motor back4(7, 5, 6);  //CHANGE-HERE
 
 //  PID Constants
 constexpr double linearConst[] = {0.0, 0.0, 0.0};          //Kp | Ki | Kd
@@ -291,6 +293,8 @@ void setup()
 
   pinMode(piston_pin2, OUTPUT);
   pinMode(piston_pin1, OUTPUT);
+  pinMode(piston_pin3, OUTPUT);
+  pinMode(piston_pin4, OUTPUT);
   bot.initialize();
   initializeBNO();
   // resetEncoder();
@@ -406,7 +410,7 @@ void loop()
         Serial.println("Left Axis Triggered\t");
         //Serial.println(String(Lx));
         pwm = map(Lx, -32768, 32767, -25, 25);
-        bot.Rotate(pwm);
+        //bot.Rotate(pwm);
         //resetBNO();
       }
       else if (ds4.button(TRIANGLE))
@@ -425,10 +429,20 @@ void loop()
       else if (ds4.button(HAT_LEFT)) {
         digitalWrite(piston_pin1, HIGH);
         digitalWrite(piston_pin2, LOW);
+        
       }
       else if (ds4.button(HAT_RIGHT)) {
         digitalWrite(piston_pin1, LOW);
         digitalWrite(piston_pin2, HIGH);
+        
+      }
+      else if(ds4.button(R2)){
+        digitalWrite(piston_pin3, HIGH);
+        digitalWrite(piston_pin4, LOW);
+      }
+      else if(ds4.button(L2)){
+        digitalWrite(piston_pin3, LOW);
+        digitalWrite(piston_pin4, HIGH);
       }
       else if (ds4.button(R1))
       {
