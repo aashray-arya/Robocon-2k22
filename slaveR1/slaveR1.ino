@@ -4,7 +4,10 @@
 #define servoPin 3 // signal pin for the ESC.
 Servo servo;
 
-int i=1700;
+int x;
+boolean flag = true;
+
+void receiveEvent(int HowMany);
 
 void setup()
 {
@@ -17,28 +20,41 @@ void setup()
 
 void loop()
 {
-  delay(100);
+  int j;
+  if (x == 0) {
+    servo.writeMicroseconds(1500);
+    Serial.println(x);
+    flag=true;
+  }
+  else {
+    if (flag) {
+      for (j = 1550; j <= 1850; j++) {
+        servo.writeMicroseconds(j);
+        Serial.println(j);
+        delay(15);
+      }
+    }
+    flag = false;
+    servo.writeMicroseconds(j);
+  }
 }
 
-// function that executes whenever data is received from master
-// this function is registered as an event, see setup()
 void receiveEvent(int howMany)
 {
-  while(1 < Wire.available()) // loop through all but the last
+  while (1 < Wire.available()) // loop through all but the last
   {
     char c = Wire.read(); // receive byte as a character
     Serial.print(c);         // print the character
   }
-  int x = Wire.read();    // receive byte as an integer
-  if(x==0){
-    servo.writeMicroseconds(1000);
-    i=1700;
-    Serial.println(x);
-  } else{
-    i++;
-    if(i>1850)
-    i=1850;
-    servo.writeMicroseconds(i);
-    Serial.println(x);
-  }
+  x = Wire.read();    // receive byte as an integer
+  //  if(x==0){
+  //    servo.writeMicroseconds(1500);
+  //    Serial.println(x);
+  //  } else{
+  //    for(int j=1550;j<=1850;j++){
+  //      servo.writeMicroseconds(j);
+  //      Serial.println(j);
+  //      delay(20);
+  //    }
+  //  }
 }
