@@ -26,6 +26,7 @@
 float kp, ki, kd;
 bool power;
 
+int flags=0;
 
 Servo myservo;
 
@@ -85,7 +86,8 @@ bool checkForRoutines()
 void sendSignalToSlave(byte value) {
   Wire.beginTransmission(4); // transmit to device #4
   Wire.write(value);         // sends one byte
-  Wire.endTransmission();    // stop transmitting
+  Wire.endTransmission();
+  flags = 0;// stop transmitting
 }
 
 void updateBldcState() {
@@ -97,11 +99,16 @@ void updateBldcState() {
 
     if (bldcHoldTime >= 100 && bldcHoldTime < 500) {
       Serial.println("Button was held for about half a second");
-      if (bldc == 0)
+      if (bldc == 0){
         bldc = 1;
-      else
+        flags = 1;
+      }
+      else{
         bldc = 0;
-      sendSignalToSlave(bldc);
+        flags = 1;
+      }
+      if(flags=1)
+        sendSignalToSlave(bldc);
     }
 
   }
