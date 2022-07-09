@@ -396,21 +396,27 @@ void loop()
       else if (ds4.button(SQUARE))//stepper
       {
         Serial.println("1 step forward");
-        digitalWrite(dirPin, HIGH);
-        digitalWrite(stepPin, HIGH);
-        delayMicroseconds(500);
-        digitalWrite(stepPin, LOW);
-        delayMicroseconds(500);
+        Wire.beginTransmission(9);
+        Wire.write('1');
+        Wire.endTransmission();
+//        digitalWrite(dirPin, HIGH);
+//        digitalWrite(stepPin, HIGH);
+//        delayMicroseconds(500);
+//        digitalWrite(stepPin, LOW);
+//        delayMicroseconds(500);
 
       }
       else if (ds4.button(CIRCLE))//stepper
       {
         Serial.println("1 step backward");
-        digitalWrite(dirPin, LOW);
-        digitalWrite(stepPin, HIGH);
-        delayMicroseconds(500);
-        digitalWrite(stepPin, LOW);
-        delayMicroseconds(500);
+        Wire.beginTransmission(9);
+        Wire.write('0');
+        Wire.endTransmission();
+//        digitalWrite(dirPin, LOW);
+//        digitalWrite(stepPin, HIGH);
+//        delayMicroseconds(500);
+//        digitalWrite(stepPin, LOW);
+//        delayMicroseconds(500);
       }
       else if (!(Lx > -AXIS_DEAD_ZONE && Lx < AXIS_DEAD_ZONE) || !(Ly > -AXIS_DEAD_ZONE && Ly < AXIS_DEAD_ZONE))
       {
