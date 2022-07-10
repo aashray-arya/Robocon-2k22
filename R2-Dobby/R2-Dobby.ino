@@ -20,24 +20,24 @@
 
 #define relay11 27
 #define relay12 29
-#define relay21 31
-#define relay22 33
+#define relay21 25
+#define relay22 23
 
-#define relay31 49
-#define relay32 53
+#define relay31 A4 //lagori gripper motor p1
+#define relay32 A6 //lagori gripper motor p2
 
 //#define in1DC 49
 //#define in2DC 53
-#define pwmDC 45
+#define pwmDC 7 //lagori gripper motor pwm
 
-#define PW1 23
-#define PW2 25
+#define PW1 37
+#define PW2 35
 int flagg = 0;
 int flaggg = 0;
 
-#define dc1 9
-#define dc2 8
-#define dcpwm 7
+#define dc1 A1
+#define dc2 A3
+#define dcpwm 8
 float kp, ki, kd;
 bool power;
 
@@ -60,13 +60,13 @@ void convert(byte toConvert[], unsigned int converted[], long &res);
 bool funcData(double values[]);
 void Serial3Flush();
 
-constexpr motor front(A13, A10, 4);  //DO | D1 | PWM        //CHANGE-HERE
-constexpr motor left(A6, A8, 5); //CHANGE-HERE
-constexpr motor right(A4, A1, 6);   //CHANGE-HERE
+constexpr motor front(A7, A9, 6);  //DO | D1 | PWM        //CHANGE-HERE
+constexpr motor left(A13, A15, 4); //CHANGE-HERE
+constexpr motor right(A12, A10, 5);   //CHANGE-HERE
 
 //  PID Constants
 constexpr double linearConst[] = {0.0, 0.0, 0.0};          //Kp | Ki | Kd
-constexpr double rotationalConst[] = {0.021, 0.015, 0.0032}; //{0.03, 0.135, 0.011} //avg:{0.03, 0.117, 0.018}
+constexpr double rotationalConst[] = {0.04215, 0.02, 0.01}; //{0.03, 0.135, 0.011} //avg:{0.03, 0.117, 0.018}
 
 HolonomicDrive bot(front, left, right, linearConst, rotationalConst, MAX_SPEED); //Front | Left | Right | Linear Constant | Rotational Constant | Max Speed
 DualShock4 ds4(Serial3);
@@ -288,7 +288,7 @@ void setup()
   bot.initialize();
   initializeBNO();
   // resetEncoder();
-  myservo1.attach(10);
+  myservo1.attach(11);
   myservo2.attach(12);
 
   pinMode(powerLed, OUTPUT);
@@ -396,7 +396,7 @@ void loop()
       {
         Serial.println("Left Axis Triggered\t");
         //Serial.println(String(Lx));
-        pwm = map(Lx, -32768, 32767, 25, -25);
+        pwm = map(Lx, -32768, 32767, -25, 25);
         bot.Rotate_AK(pwm);
 //        resetBNO();
       }
