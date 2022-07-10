@@ -198,7 +198,7 @@ void HolonomicDrive::move(int R, float theta, float _head = 0.0, float w = 0)
     theta = toRadian(theta + output[LIN]);
     comp.Vx = cos(theta);
     comp.Vy = sin(theta);
-    comp.W = w - output[ROT];
+    comp.W = w + output[ROT];
 
     float Vf = (comp.Vx + comp.W);
     float Vl = -0.5 * comp.Vx + 0.867 * comp.Vy + comp.W;
