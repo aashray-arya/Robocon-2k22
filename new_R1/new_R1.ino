@@ -4,49 +4,38 @@
     PID_v1             ->      https://github.com/br3ttb/Arduino-PID-Library
   Rest of the libraries are included in /src folder
 */
+
 #include <Arduino.h>
 #include <Wire.h>
 #include <PID_v1.h>
 #include <DualShock4_lib.h>
 #include "src/Encoder/Encoder.h"
 #include "src/IMU/IMU.h"
-#include "src/HolonomicDrive/HolonomicDrive.h"
+#include "src/MDrive/MDrive.h"
 #include <Servo.h>
-#include <String.h>
+#include<String.h>
 
-//# define X_EN_5v  53 //ENA+(+5V) stepper motor enable , active low     Orange
-//# define dirPin 49 //DIR+(+5v) axis stepper motor direction control  Brown
-//# define stepPin 45//PUL+(+5v) axis stepper motor step control       RED
+#define X_EN_5v  49 //ENA+(+5V) stepper motor enable , active low     Orange
+#define dirPin 47 //DIR+(+5v) axis stepper motor direction control  Brown
+#define stepPin 45//PUL+(+5v) axis stepper motor step control       RED
+#define piston_pin1 29
+#define piston_pin2 27
+#define piston_pin3 25
+#define piston_pin4 23
 
-#define relay11 27
-#define relay12 29
-#define relay21 25
-#define relay22 23
+#define angle1 300
+#define angle2 330
+#define angle3 60
+#define angle4 30
 
-#define relay31 A4 //lagori gripper motor p1
-#define relay32 A6 //lagori gripper motor p2
-
-//#define in1DC 49
-//#define in2DC 53
-#define pwmDC 7 //lagori gripper motor pwm
-
-#define lpwm 10  //ball picking mechanism bts7960 motor
-#define rpwm 9
-
-#define PW1 37
-#define PW2 35
-int flagg = 0;
-int flaggg = 0;
-
-#define dc1 A1
-#define dc2 A3
-#define dcpwm 8
 float kp, ki, kd;
 bool power;
 
+int flags = 0;
+float k = 0;
 
-Servo myservo1;
-Servo myservo2;
+Servo myservo;
+
 
 constexpr int MAX_SPEED = 40;
 constexpr int AXIS_DEAD_ZONE = 1500;
@@ -61,24 +50,49 @@ void decodeData(byte toDecode[], byte totalRecvd, byte &decodedByteCount, byte d
 bool ReadBytes(byte data[], byte toRead, char toSend);
 void convert(byte toConvert[], unsigned int converted[], long &res);
 bool funcData(double values[]);
-void Serial3Flush();
+void Serial2Flush();
 
-constexpr motor front(A7, A9, 6);  //DO | D1 | PWM        //CHANGE-HERE
-constexpr motor left(A13, A15, 4); //CHANGE-HERE
-constexpr motor right(A12, A10, 5);   //CHANGE-HERE
+constexpr motor front1(8, 10, 9);  //DO | D1 | PWM        //CHANGE-HERE
+constexpr motor front2(13, 11, 12); //CHANGE-HERE
+constexpr motor back3(2, 4, 3);   //CHANGE-HERE
+constexpr motor back4(5, 7, 6);  //CHANGE-HERE
 
 //  PID Constants
 constexpr double linearConst[] = {0.0, 0.0, 0.0};          //Kp | Ki | Kd
-constexpr double rotationalConst[] = {0.04215, 0.02, 0.01}; //{0.03, 0.135, 0.011} //avg:{0.03, 0.117, 0.018}
+constexpr double rotationalConst[] = {0.0, 0.0, 0.0}; //{0.03, 0.135, 0.011} //avg:{0.03, 0.117, 0.018}
 
-HolonomicDrive bot(front, left, right, linearConst, rotationalConst, MAX_SPEED); //Front | Left | Right | Linear Constant | Rotational Constant | Max Speed
-DualShock4 ds4(Serial3);
+Drive bot(front1, front2, back3, back4, linearConst, rotationalConst, MAX_SPEED);
+DualShock4 ds4(Serial2);
 
 bool powerOn = false;
 
 constexpr int powerLed = 53;
-//PIDTuner tuner(&powerOn, &kp, &ki, &kd, Serial3);a
+//PIDTuner tuner(&powerOn, &kp, &ki, &kd, Serial2);
 int Lx, Ly, Rx, Ry;
+
+//bldc
+byte bldc = 0;
+int bldcButtonState = 0;
+int bldcLastButtonState = 0;
+int bldcStartPressed = 0;
+int bldcEndPressed = 0;
+int bldcHoldTime = 0;
+
+//Allowing ball to enter the lifting mechanism
+byte ballAllow = 0;
+int ballAllowButton = 0;
+int ballAllowState = 0;
+int ballAllowStart = 0;
+int ballAllowEnd = 0;
+int ballAllowHoldTime = 0;
+
+//Sending ball to the bldc (lifting mechanism)
+byte ballSend = 0;
+int ballSendButton = 0;
+int ballSendState = 0;
+int ballSendStart = 0;
+int ballSendEnd = 0;
+int ballSendHoldTime = 0;
 
 uint8_t routineCounter = 0;
 bool checkForRoutines()
@@ -90,6 +104,82 @@ bool checkForRoutines()
     return true;
   }
   return false;
+}
+void sendSignalToSlave(byte value) {
+  Wire.beginTransmission(4); // transmit to device #4
+  Wire.write(value);         // sends one byte
+  Wire.endTransmission();
+  flags = 0;// stop transmitting
+}
+
+void updateBldcState() {
+  if (bldcButtonState == HIGH) {  // the button has been just pressed
+    bldcStartPressed = millis();
+  } else {  // the button has been just released
+    bldcEndPressed = millis();
+    bldcHoldTime = bldcEndPressed - bldcStartPressed;
+
+    if (bldcHoldTime >= 100 && bldcHoldTime < 500) {
+      Serial.println("Button was held for about half a second");
+      if (bldc == 0) {
+        bldc = 1;
+        flags = 1;
+      }
+      else {
+        bldc = 0;
+        flags = 1;
+      }
+      if (flags = 1)
+        sendSignalToSlave(bldc);
+    }
+
+  }
+}
+
+void updateBallAllow() {
+  if (ballAllowButton == HIGH)
+    ballAllowStart = millis();
+  else {
+    ballAllowEnd = millis();
+    ballAllowHoldTime = ballAllowEnd - ballAllowStart;
+
+    if (ballAllowHoldTime >= 100 && ballAllowHoldTime <= 500) {
+      Serial.println("Button was held for about half a second");
+      if (ballAllow == 0) {
+        digitalWrite(piston_pin1, HIGH);
+        digitalWrite(piston_pin2, LOW);
+        ballAllow = 1;
+      }
+      else {
+        digitalWrite(piston_pin1, LOW);
+        digitalWrite(piston_pin2, HIGH);
+        ballAllow = 0;
+      }
+    }
+  }
+}
+
+void updateBallSend() {
+  if (ballSendButton == HIGH)
+    ballSendStart = millis();
+  else {
+    ballSendEnd = millis();
+    ballSendHoldTime = ballSendEnd - ballSendStart;
+
+    if (ballSendHoldTime >= 100 && ballSendHoldTime <= 500) {
+      Serial.println("Button was held for about half a second");
+      if (ballSend == 0) {
+        digitalWrite(piston_pin3, HIGH);
+        digitalWrite(piston_pin4, LOW);
+        ballSend = 1;
+      }
+      else {
+        digitalWrite(piston_pin3, LOW);
+        digitalWrite(piston_pin4, HIGH);
+        ballSend = 0;
+      }
+    }
+  }
 }
 
 void forestRoutine() {};
@@ -148,23 +238,23 @@ void testRoutine ()
   Serial.println("N.X: " + String(next.x) + "N.Y: " + String(next.y) + "\tVEL: " + String(_vel) + "\tTAN: " + String(_tan) + "\tX: " + String(pos.x) + "\tY: " + String(pos.y));
   bot.move(_vel, _tan);
 }
-//void servo()
-//{
-//  myservo.writeMicroseconds(1850);
-//  Serial.println("BLDC start");
-//}
-//void servo1()
-//{
-//  //   for (int i=pos; i>= 0; i -= 1) { // goes from 0 degrees to 180 degrees
-//  //    // in steps of 1 degree
-//  myservo.write(0);
-//  //    delay(15);}
-//}
-
-void Serial3Flush()
+void servo()
 {
-  while (Serial3.available() > 0)
-    char ch = Serial3.read();
+  myservo.writeMicroseconds(1850);
+  Serial.println("BLDC start");
+}
+void servo1()
+{
+  //   for (int i=pos; i>= 0; i -= 1) { // goes from 0 degrees to 180 degrees
+  //    // in steps of 1 degree
+  myservo.write(0);
+  //    delay(15);}
+}
+
+void Serial2Flush()
+{
+  while (Serial2.available() > 0)
+    char ch = Serial2.read();
 }
 
 void decodeData(byte toDecode[], byte totalRecvd, byte &decodedByteCount, byte decodedBytes[], byte specialByte)
@@ -192,14 +282,14 @@ bool ReadBytes(byte data[], byte toRead, char toSend)
   if (firstCall)
   {
     firstCall = false;
-    Serial3Flush();
-    Serial3.print(toSend);
+    Serial2Flush();
+    Serial2.print(toSend);
     lastRead = millis();
   }
 
-  while (Serial3.available())
+  while (Serial2.available())
   {
-    byte x = Serial3.read();
+    byte x = Serial2.read();
     //Serial.println(x);
     lastRead = millis();
     if (x == startMarker)
@@ -268,45 +358,24 @@ bool funcData(double values[])
 void setup()
 {
   Serial.begin(115200);
-  Serial3.begin(115200);
+  Serial2.begin(115200);
   Wire.begin();
-//  pinMode(stepPin, OUTPUT);
-//  pinMode(dirPin, OUTPUT);
-  pinMode(PW1, OUTPUT);
-  pinMode(PW2, OUTPUT);
-  pinMode(dc1, OUTPUT);
-  pinMode(dc2, OUTPUT);
-  pinMode(dcpwm, OUTPUT);
 
-  pinMode(lpwm, OUTPUT);
-  pinMode(rpwm, OUTPUT);
+  pinMode(stepPin, OUTPUT);
+  pinMode(dirPin, OUTPUT);
+  pinMode(X_EN_5v, OUTPUT);
+  digitalWrite(X_EN_5v, LOW);
 
-  pinMode(A1, OUTPUT);
-  pinMode(A3, OUTPUT);
-  digitalWrite(A1, HIGH);
-  digitalWrite(A3, HIGH);
-  
-//  pinMode(X_EN_5v, OUTPUT);
-//  digitalWrite(X_EN_5v, LOW);
-  pinMode(relay11, OUTPUT);
-  pinMode(relay12, OUTPUT);
-  pinMode(relay21, OUTPUT);
-  pinMode(relay22, OUTPUT); 
-  pinMode(relay31, OUTPUT);
-  pinMode(relay32, OUTPUT);
-//  pinMode(in1DC,OUTPUT);
-//  pinMode(in2DC,OUTPUT);
-  
+  pinMode(piston_pin2, OUTPUT);
+  pinMode(piston_pin1, OUTPUT);
+  pinMode(piston_pin3, OUTPUT);
+  pinMode(piston_pin4, OUTPUT);
   bot.initialize();
   initializeBNO();
   // resetEncoder();
-  myservo1.attach(11);
-  myservo2.attach(12);
-
+  //myservo.attach(46);
   pinMode(powerLed, OUTPUT);
   //while (!tuner.update());
-  digitalWrite(A7, LOW);
-  digitalWrite(A12, LOW);
 
   debug_msg("Connecting to Controller");
   while (!ds4.readGamepad());
@@ -335,12 +404,15 @@ void loop()
     {
       Lx = map(ds4.axis(LX), 0, 65535, -32768, 32767);
       Ly = map(ds4.axis(LY), 0, 65535, -32768, 32767);
-      Rx = map(ds4.axis(RX), 0, 65535, 32767, -32768);
-      Ry = map(ds4.axis(RY), 0, 65535, 32767, -32768);
+      Rx = map(ds4.axis(RX), 0, 65535, -32768, 32767);
+      Ry = map(ds4.axis(RY), 0, 65535, -32768, 32767);
       Serial.print("Lx :");
       Serial.print(Lx);
       Serial.print("\tLy :");
       Serial.println(Ly);
+      bldcButtonState = ds4.button(UP);
+      ballAllowButton = ds4.button(HAT_RIGHT);
+      ballSendButton = ds4.button(HAT_LEFT);
 
       if (checkForRoutines())
       {
@@ -352,7 +424,6 @@ void loop()
         double theta = toDegree(atan((double)Ry / (double)Rx));
         Rx = map(Rx, -32768, 32767, -128, 127);
         Ry = map(Ry, -32768, 32767, -128, 127);
-        
         Serial.print("Rx :");
         Serial.println(Rx);
         unsigned int R = constrain(map2((double)((Rx * Rx) + (Ry * Ry)), 0.0, 16384.0, 0.0, 100.0), 0, 100);
@@ -392,123 +463,108 @@ void loop()
         bot.move(R, theta);
         //testRoutine();
       }
-      else if (ds4.button(SQUARE))
+      else if (ds4.button(SQUARE))//stepper
       {
-        Serial.println("SQ");
-        digitalWrite(PW1, LOW);
-        digitalWrite(PW2, HIGH);
+        Serial.println("1 step forward");
+        Wire.beginTransmission(9);
+        Wire.write('1');
+        Wire.endTransmission();
+        //        digitalWrite(dirPin, HIGH);
+        //        digitalWrite(stepPin, HIGH);
+        //        delayMicroseconds(500);
+        //        digitalWrite(stepPin, LOW);
+        //        delayMicroseconds(500);
 
       }
-      else if (ds4.button(CIRCLE))
+      else if (ds4.button(CIRCLE))//stepper
       {
-        Serial.println("CIR");
-        digitalWrite(PW1, HIGH);
-        digitalWrite(PW2, LOW);
+        Serial.println("1 step backward");
+        Wire.beginTransmission(9);
+        Wire.write('0');
+        Wire.endTransmission();
+        //        digitalWrite(dirPin, LOW);
+        //        digitalWrite(stepPin, HIGH);
+        //        delayMicroseconds(500);
+        //        digitalWrite(stepPin, LOW);
+        //        delayMicroseconds(500);
       }
       else if (!(Lx > -AXIS_DEAD_ZONE && Lx < AXIS_DEAD_ZONE) || !(Ly > -AXIS_DEAD_ZONE && Ly < AXIS_DEAD_ZONE))
       {
         Serial.println("Left Axis Triggered\t");
         //Serial.println(String(Lx));
         pwm = map(Lx, -32768, 32767, -25, 25);
-        bot.Rotate_AK(pwm);
-//        resetBNO();
-      }
-      else if (ds4.button(OPTIONS))
-      {
-        //        Serial.println("move bot");
-        //        bot.move(30, 90);
-        digitalWrite(relay11, HIGH);
-        digitalWrite(relay12, LOW);
-        digitalWrite(relay21, HIGH);
-        digitalWrite(relay22, LOW);
-          
-
-      }
-      else if (ds4.button(SHARE))
-      {
-        //        Serial.println("bot move back");
-        //        bot.move(30, 270);
-        digitalWrite(relay11, LOW);
-        digitalWrite(relay12, HIGH);
-        digitalWrite(relay21, LOW);
-        digitalWrite(relay22, HIGH);
-      }
-      else if (ds4.button(DOWN)) {
-        resetBNO();
-      }
-      else if (ds4.button(HAT_RIGHT)) {
-        //        Serial.println("1 step forward");
-        //        digitalWrite(dirPin, HIGH);
-        //        digitalWrite(stepPin, HIGH);
-        //        delayMicroseconds(22);
-        //        digitalWrite(stepPin, LOW);
-        //        delayMicroseconds(22);
-        analogWrite(pwmDC,255);
-        digitalWrite(relay31, HIGH);
-        digitalWrite(relay32, LOW);
-                  
-//                  digitalWrite(in1DC,LOW);
-//                  digitalWrite(in2DC,HIGH);
-      }
-      else if (ds4.button(HAT_LEFT)) {
-        //        Serial.println("1 step backward");
-        //        digitalWrite(dirPin, LOW);
-        //        digitalWrite(stepPin, HIGH);
-        //        delayMicroseconds(22);
-        //        digitalWrite(stepPin, LOW);
-        //        delayMicroseconds(22);
-         analogWrite(pwmDC,255);
-        digitalWrite(relay31, LOW);
-        digitalWrite(relay32, HIGH);
-
-          
-//           digitalWrite(in1DC,HIGH);
-//           digitalWrite(in2DC,LOW);  
-      }
-      else if (ds4.button(R1))
-      {
-        Serial.println("r1");
-//        digitalWrite(dc1, LOW);
-//        digitalWrite(dc2, HIGH);
-//        analogWrite(dcpwm, 100);
-        analogWrite(lpwm, 0);
-        analogWrite(rpwm, 127);
-      }
-      else if (ds4.button(L1))
-      {
-        //bot.Rotate_AK(-30);
-//        digitalWrite(dc1, HIGH);
-//        digitalWrite(dc2, LOW);
-//        analogWrite(dcpwm, 100);
-        analogWrite(lpwm, 127);
-        analogWrite(rpwm, 0);
-      }
-      else if (ds4.button(R2))
-      {
-        myservo1.write(180);
-        myservo2.write(0);
-      }
-      else if (ds4.button(L2))
-      {
-        myservo1.write(90);
-        myservo2.write(90);
+        //bot.Rotate(pwm);
+        //resetBNO();
       }
       else if (ds4.button(TRIANGLE))
       {
-        myservo1.write(90);
-        myservo2.write(90);
+        Serial.println("move bot");
+        bot.move(30, 90);
+      }
+      else if (ds4.button(CROSS))
+      {
+        Serial.println("bot move back");
+        bot.move(30, 270);
+      }
+      else if (bldcButtonState != bldcLastButtonState) { // button state changed
+        updateBldcState();
+      }
+      else if (ballAllowButton != ballAllowState) {
+        updateBallAllow();
+      }
+      else if (ballSendButton != ballSendState) {
+        updateBallSend();
+      }
+//#define angle1 60
+//#define angle2 30
+
+
+else if(ds4.button(R1))
+{
+  while(k>=0&&k<=60)
+  {
+    bot.Rotate(30);
+  }
+  bot.stopAll();
+  Serial.println("stop 30");
+}
+else if(ds4.button(R2))
+{
+  while(k>=30&&k<=60)
+  {
+    bot.Rotate(-30);
+  }
+  bot.stopAll();
+  Serial.println("stop 60");
+}
+else if(ds4.button(L1))
+{
+  while(k<=360&&k>=330)
+  {
+    bot.Rotate(-30);
+  }
+  bot.stopAll();
+  Serial.println("stop 330");
+}
+else if(ds4.button(L2))
+{
+  while(k<=330&&k>=300)
+  {
+    bot.Rotate(-30);
+  }
+  bot.stopAll();
+  Serial.println("stop 300");
+}
+      else if (ds4.button(DOWN)) {
+        resetBNO();
       }
       else {
         //Serial.println("Stopping");
         bot.stopAll();
-        digitalWrite(PW1, LOW);
-        digitalWrite(PW2, LOW);
-        analogWrite(lpwm, 0);
-        analogWrite(rpwm, 0);
-        digitalWrite(relay31, HIGH);
-        digitalWrite(relay32, HIGH);
       }
-
+      bldcLastButtonState = bldcButtonState;        // save bldc state for next loop
+      ballAllowState = ballAllowButton;
+      ballSendState = ballSendButton;
     }
     else
       bot.stopAll();

@@ -4,7 +4,7 @@
 #define pulseSpeed 1500
 #define stepsPerRevolution 200
 
-#define stepper_time 80
+#define stepper_time 1400
 
 byte stepper_dir = LOW; // anti cockwise
 int stepper_t = stepper_time + 1;
