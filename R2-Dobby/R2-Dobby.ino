@@ -30,6 +30,9 @@
 //#define in2DC 53
 #define pwmDC 7 //lagori gripper motor pwm
 
+#define lpwm 10  //ball picking mechanism bts7960 motor
+#define rpwm 9
+
 #define PW1 37
 #define PW2 35
 int flagg = 0;
@@ -60,7 +63,7 @@ void convert(byte toConvert[], unsigned int converted[], long &res);
 bool funcData(double values[]);
 void Serial3Flush();
 
-constexpr motor front(A7, A9, 6);  //DO | D1 | PWM        //CHANGE-HERE
+constexpr motor front(A9, A7, 6);  //DO | D1 | PWM        //CHANGE-HERE
 constexpr motor left(A13, A15, 4); //CHANGE-HERE
 constexpr motor right(A12, A10, 5);   //CHANGE-HERE
 
@@ -274,6 +277,15 @@ void setup()
   pinMode(dc1, OUTPUT);
   pinMode(dc2, OUTPUT);
   pinMode(dcpwm, OUTPUT);
+
+  pinMode(lpwm, OUTPUT);
+  pinMode(rpwm, OUTPUT);
+
+  pinMode(A1, OUTPUT);
+  pinMode(A3, OUTPUT);
+  digitalWrite(A1, HIGH);
+  digitalWrite(A3, HIGH);
+  
 //  pinMode(X_EN_5v, OUTPUT);
 //  digitalWrite(X_EN_5v, LOW);
   pinMode(relay11, OUTPUT);
@@ -293,9 +305,6 @@ void setup()
 
   pinMode(powerLed, OUTPUT);
   //while (!tuner.update());
-  digitalWrite(A7, LOW);
-  digitalWrite(A12, LOW);
-
   debug_msg("Connecting to Controller");
   while (!ds4.readGamepad());
   debug_msg("Controller Connected");
@@ -323,8 +332,9 @@ void loop()
     {
       Lx = map(ds4.axis(LX), 0, 65535, -32768, 32767);
       Ly = map(ds4.axis(LY), 0, 65535, -32768, 32767);
-      Rx = map(ds4.axis(RX), 0, 65535, 32768, -32767);
-      Ry = map(ds4.axis(RY), 0, 65535, -32768, 32767);
+      Rx = map(ds4.axis(RX), 0, 65535, 32767, -32768);
+      Ry = map(ds4.axis(RY), 0, 65535, 32767, -32768);
+      delay(25);
       Serial.print("Lx :");
       Serial.print(Lx);
       Serial.print("\tLy :");
@@ -340,6 +350,8 @@ void loop()
         double theta = toDegree(atan((double)Ry / (double)Rx));
         Rx = map(Rx, -32768, 32767, -128, 127);
         Ry = map(Ry, -32768, 32767, -128, 127);
+        int a=getYaw();
+        Serial.println(a);
         Serial.print("Rx :");
         Serial.println(Rx);
         unsigned int R = constrain(map2((double)((Rx * Rx) + (Ry * Ry)), 0.0, 16384.0, 0.0, 100.0), 0, 100);
@@ -423,7 +435,7 @@ void loop()
       else if (ds4.button(DOWN)) {
         resetBNO();
       }
-      else if (ds4.button(HAT_RIGHT)) {
+      else if (ds4.button(HAT_LEFT)) {
         //        Serial.println("1 step forward");
         //        digitalWrite(dirPin, HIGH);
         //        digitalWrite(stepPin, HIGH);
@@ -437,7 +449,7 @@ void loop()
 //                  digitalWrite(in1DC,LOW);
 //                  digitalWrite(in2DC,HIGH);
       }
-      else if (ds4.button(HAT_LEFT)) {
+      else if (ds4.button(HAT_RIGHT)) {
         //        Serial.println("1 step backward");
         //        digitalWrite(dirPin, LOW);
         //        digitalWrite(stepPin, HIGH);
@@ -455,16 +467,20 @@ void loop()
       else if (ds4.button(R1))
       {
         Serial.println("r1");
-        digitalWrite(dc1, LOW);
-        digitalWrite(dc2, HIGH);
-        analogWrite(dcpwm, 100);
+//        digitalWrite(dc1, LOW);
+//        digitalWrite(dc2, HIGH);
+//        analogWrite(dcpwm, 100);
+        analogWrite(lpwm, 0);
+        analogWrite(rpwm, 127);
       }
       else if (ds4.button(L1))
       {
         //bot.Rotate_AK(-30);
-        digitalWrite(dc1, HIGH);
-        digitalWrite(dc2, LOW);
-        analogWrite(dcpwm, 100);
+//        digitalWrite(dc1, HIGH);
+//        digitalWrite(dc2, LOW);
+//        analogWrite(dcpwm, 100);
+        analogWrite(lpwm, 127);
+        analogWrite(rpwm, 0);
       }
       else if (ds4.button(R2))
       {
@@ -473,8 +489,8 @@ void loop()
       }
       else if (ds4.button(L2))
       {
-        myservo1.write(135);
-        myservo2.write(45);
+        myservo1.write(90);
+        myservo2.write(90);
       }
       else if (ds4.button(TRIANGLE))
       {
@@ -486,8 +502,8 @@ void loop()
         bot.stopAll();
         digitalWrite(PW1, LOW);
         digitalWrite(PW2, LOW);
-        digitalWrite(dc1, HIGH);
-        digitalWrite(dc2, HIGH);
+        analogWrite(lpwm, 0);
+        analogWrite(rpwm, 0);
         digitalWrite(relay31, HIGH);
         digitalWrite(relay32, HIGH);
       }
