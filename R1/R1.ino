@@ -23,10 +23,16 @@
 #define piston_pin3 25
 #define piston_pin4 23
 
+#define angle1 300
+#define angle2 330
+#define angle3 60
+#define angle4 30
+
 float kp, ki, kd;
 bool power;
 
-int flags=0;
+int flags = 0;
+float k = 0;
 
 Servo myservo;
 
@@ -44,24 +50,24 @@ void decodeData(byte toDecode[], byte totalRecvd, byte &decodedByteCount, byte d
 bool ReadBytes(byte data[], byte toRead, char toSend);
 void convert(byte toConvert[], unsigned int converted[], long &res);
 bool funcData(double values[]);
-void Serial3Flush();
+void Serial2Flush();
 
 constexpr motor front1(8, 10, 9);  //DO | D1 | PWM        //CHANGE-HERE
 constexpr motor front2(13, 11, 12); //CHANGE-HERE
-constexpr motor back3(4, 2, 3);   //CHANGE-HERE
-constexpr motor back4(7, 5, 6);  //CHANGE-HERE
+constexpr motor back3(2, 4, 3);   //CHANGE-HERE
+constexpr motor back4(5, 7, 6);  //CHANGE-HERE
 
 //  PID Constants
 constexpr double linearConst[] = {0.0, 0.0, 0.0};          //Kp | Ki | Kd
 constexpr double rotationalConst[] = {0.0, 0.0, 0.0}; //{0.03, 0.135, 0.011} //avg:{0.03, 0.117, 0.018}
 
 Drive bot(front1, front2, back3, back4, linearConst, rotationalConst, MAX_SPEED);
-DualShock4 ds4(Serial3);
+DualShock4 ds4(Serial2);
 
 bool powerOn = false;
 
 constexpr int powerLed = 53;
-//PIDTuner tuner(&powerOn, &kp, &ki, &kd, Serial3);
+//PIDTuner tuner(&powerOn, &kp, &ki, &kd, Serial2);
 int Lx, Ly, Rx, Ry;
 
 //bldc
@@ -71,6 +77,22 @@ int bldcLastButtonState = 0;
 int bldcStartPressed = 0;
 int bldcEndPressed = 0;
 int bldcHoldTime = 0;
+
+//Allowing ball to enter the lifting mechanism
+byte ballAllow = 0;
+int ballAllowButton = 0;
+int ballAllowState = 0;
+int ballAllowStart = 0;
+int ballAllowEnd = 0;
+int ballAllowHoldTime = 0;
+
+//Sending ball to the bldc (lifting mechanism)
+byte ballSend = 0;
+int ballSendButton = 0;
+int ballSendState = 0;
+int ballSendStart = 0;
+int ballSendEnd = 0;
+int ballSendHoldTime = 0;
 
 uint8_t routineCounter = 0;
 bool checkForRoutines()
@@ -99,18 +121,64 @@ void updateBldcState() {
 
     if (bldcHoldTime >= 100 && bldcHoldTime < 500) {
       Serial.println("Button was held for about half a second");
-      if (bldc == 0){
+      if (bldc == 0) {
         bldc = 1;
         flags = 1;
       }
-      else{
+      else {
         bldc = 0;
         flags = 1;
       }
-      if(flags=1)
+      if (flags = 1)
         sendSignalToSlave(bldc);
     }
 
+  }
+}
+
+void updateBallAllow() {
+  if (ballAllowButton == HIGH)
+    ballAllowStart = millis();
+  else {
+    ballAllowEnd = millis();
+    ballAllowHoldTime = ballAllowEnd - ballAllowStart;
+
+    if (ballAllowHoldTime >= 100 && ballAllowHoldTime <= 500) {
+      Serial.println("Button was held for about half a second");
+      if (ballAllow == 0) {
+        digitalWrite(piston_pin1, HIGH);
+        digitalWrite(piston_pin2, LOW);
+        ballAllow = 1;
+      }
+      else {
+        digitalWrite(piston_pin1, LOW);
+        digitalWrite(piston_pin2, HIGH);
+        ballAllow = 0;
+      }
+    }
+  }
+}
+
+void updateBallSend() {
+  if (ballSendButton == HIGH)
+    ballSendStart = millis();
+  else {
+    ballSendEnd = millis();
+    ballSendHoldTime = ballSendEnd - ballSendStart;
+
+    if (ballSendHoldTime >= 100 && ballSendHoldTime <= 500) {
+      Serial.println("Button was held for about half a second");
+      if (ballSend == 0) {
+        digitalWrite(piston_pin3, HIGH);
+        digitalWrite(piston_pin4, LOW);
+        ballSend = 1;
+      }
+      else {
+        digitalWrite(piston_pin3, LOW);
+        digitalWrite(piston_pin4, HIGH);
+        ballSend = 0;
+      }
+    }
   }
 }
 
@@ -183,10 +251,10 @@ void servo1()
   //    delay(15);}
 }
 
-void Serial3Flush()
+void Serial2Flush()
 {
-  while (Serial3.available() > 0)
-    char ch = Serial3.read();
+  while (Serial2.available() > 0)
+    char ch = Serial2.read();
 }
 
 void decodeData(byte toDecode[], byte totalRecvd, byte &decodedByteCount, byte decodedBytes[], byte specialByte)
@@ -214,14 +282,14 @@ bool ReadBytes(byte data[], byte toRead, char toSend)
   if (firstCall)
   {
     firstCall = false;
-    Serial3Flush();
-    Serial3.print(toSend);
+    Serial2Flush();
+    Serial2.print(toSend);
     lastRead = millis();
   }
 
-  while (Serial3.available())
+  while (Serial2.available())
   {
-    byte x = Serial3.read();
+    byte x = Serial2.read();
     //Serial.println(x);
     lastRead = millis();
     if (x == startMarker)
@@ -290,7 +358,7 @@ bool funcData(double values[])
 void setup()
 {
   Serial.begin(115200);
-  Serial3.begin(115200);
+  Serial2.begin(115200);
   Wire.begin();
 
   pinMode(stepPin, OUTPUT);
@@ -338,11 +406,14 @@ void loop()
       Ly = map(ds4.axis(LY), 0, 65535, -32768, 32767);
       Rx = map(ds4.axis(RX), 0, 65535, -32768, 32767);
       Ry = map(ds4.axis(RY), 0, 65535, -32768, 32767);
+      delay(25);
       Serial.print("Lx :");
       Serial.print(Lx);
       Serial.print("\tLy :");
       Serial.println(Ly);
       bldcButtonState = ds4.button(UP);
+      ballAllowButton = ds4.button(HAT_RIGHT);
+      ballSendButton = ds4.button(HAT_LEFT);
 
       if (checkForRoutines())
       {
@@ -399,11 +470,11 @@ void loop()
         Wire.beginTransmission(9);
         Wire.write('1');
         Wire.endTransmission();
-//        digitalWrite(dirPin, HIGH);
-//        digitalWrite(stepPin, HIGH);
-//        delayMicroseconds(500);
-//        digitalWrite(stepPin, LOW);
-//        delayMicroseconds(500);
+        //        digitalWrite(dirPin, HIGH);
+        //        digitalWrite(stepPin, HIGH);
+        //        delayMicroseconds(500);
+        //        digitalWrite(stepPin, LOW);
+        //        delayMicroseconds(500);
 
       }
       else if (ds4.button(CIRCLE))//stepper
@@ -412,11 +483,11 @@ void loop()
         Wire.beginTransmission(9);
         Wire.write('0');
         Wire.endTransmission();
-//        digitalWrite(dirPin, LOW);
-//        digitalWrite(stepPin, HIGH);
-//        delayMicroseconds(500);
-//        digitalWrite(stepPin, LOW);
-//        delayMicroseconds(500);
+        //        digitalWrite(dirPin, LOW);
+        //        digitalWrite(stepPin, HIGH);
+        //        delayMicroseconds(500);
+        //        digitalWrite(stepPin, LOW);
+        //        delayMicroseconds(500);
       }
       else if (!(Lx > -AXIS_DEAD_ZONE && Lx < AXIS_DEAD_ZONE) || !(Ly > -AXIS_DEAD_ZONE && Ly < AXIS_DEAD_ZONE))
       {
@@ -428,34 +499,40 @@ void loop()
       }
       else if (ds4.button(TRIANGLE))
       {
-        Serial.println("move bot");
-        bot.move(30, 90);
+        Serial.println("1 step forward");
+        Wire.beginTransmission(9);
+        Wire.write('7');
+        Wire.endTransmission();
       }
       else if (ds4.button(CROSS))
       {
-        Serial.println("bot move back");
-        bot.move(30, 270);
+        Serial.println("1 step forward");
+        Wire.beginTransmission(9);
+        Wire.write('5');
+        Wire.endTransmission();
       }
       else if (bldcButtonState != bldcLastButtonState) { // button state changed
         updateBldcState();
       }
-      else if (ds4.button(HAT_LEFT)) {
-        digitalWrite(piston_pin1, HIGH);
-        digitalWrite(piston_pin2, LOW);
-        
+      else if (ballAllowButton != ballAllowState) {
+        updateBallAllow();
       }
-      else if (ds4.button(HAT_RIGHT)) {
-        digitalWrite(piston_pin1, LOW);
-        digitalWrite(piston_pin2, HIGH);
-        
-      }
-      else if(ds4.button(R2)){
-        digitalWrite(piston_pin3, HIGH);
-        digitalWrite(piston_pin4, LOW);
-      }
-      else if(ds4.button(L2)){
-        digitalWrite(piston_pin3, LOW);
-        digitalWrite(piston_pin4, HIGH);
+      else if (ballSendButton != ballSendState) {
+        updateBallSend();
+      } 
+
+      else if (ds4.button(R2))
+      {
+//        Wire.beginTransmission(9);
+//        Wire.write('6');
+//        Wire.endTransmission();
+        while ((k>=350||k >= 0) && k <= 70)
+        {
+          bot.Rotate(30);
+          k=getYaw();
+        }
+        bot.stopAll();
+        Serial.println("stop 30");
       }
       else if (ds4.button(R1))
       {
@@ -465,6 +542,40 @@ void loop()
       {
         bot.Rotate(-30);
       }
+      else if (ds4.button(L2))
+      {
+//        Wire.beginTransmission(9);
+//        Wire.write('6');
+//        Wire.endTransmission();
+        while (k >= 290 || k<=80)
+        {
+          bot.Rotate(-30);
+          k=getYaw();
+        }
+        bot.stopAll();
+        Serial.println("stop 300");
+      }
+      else if (ds4.button(OPTIONS)){
+        while (k >= 324 || k <= 24)
+        {
+          bot.Rotate(30);
+          k=getYaw();
+        }
+        bot.stopAll();
+        Serial.println("stop 30");
+      }
+      else if(ds4.button(SHARE)){
+        Wire.beginTransmission(9);
+        Wire.write('8');
+        Wire.endTransmission();
+        while (k <= 324 || k<=80)
+        {
+          bot.Rotate(30);
+          k=getYaw();
+        }
+        bot.stopAll();
+        Serial.println("stop 300");
+      }
       else if (ds4.button(DOWN)) {
         resetBNO();
       }
@@ -473,6 +584,8 @@ void loop()
         bot.stopAll();
       }
       bldcLastButtonState = bldcButtonState;        // save bldc state for next loop
+      ballAllowState = ballAllowButton;
+      ballSendState = ballSendButton;
     }
     else
       bot.stopAll();
