@@ -28,7 +28,7 @@ void loop()
   }
   else {
     if (flag) {
-      for (j = 1550; j <= 1850; j++) {
+      for (j = 1550; j <= 1760; j++) {
         servo.writeMicroseconds(j);
         Serial.println(j);
         delay(15);
